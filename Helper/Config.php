@@ -815,6 +815,64 @@ class Config extends AbstractHelper
     }
 
     /**
+     * Check if sku attribute is mapped with PIM attribute
+     *
+     * @return string|false
+     */
+    public function getSimpleSkuMapped()
+    {
+        /** @var mixed $matches */
+        $matches = $this->getAttributeMapping();
+        if (!is_array($matches)) {
+            return false;
+        }
+
+        /** @var mixed[] $match */
+        foreach ($matches as $match) {
+            if (!isset($match['akeneo_attribute'], $match['magento_attribute'])) {
+                continue;
+            }
+
+            /** @var string $magentoAttribute */
+            $magentoAttribute = $match['magento_attribute'];
+            if ($magentoAttribute === 'sku') {
+                return $match['akeneo_attribute'];
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if sku attribute is mapped with PIM attribute
+     *
+     * @return bool
+     */
+    public function getConfigurableSkuMapped()
+    {
+        /** @var mixed $matches */
+        $matches = $this->getConfigurableAttributeMapping();
+        if (!is_array($matches)) {
+            return false;
+        }
+
+        /** @var mixed[] $match */
+        foreach ($matches as $match) {
+            if (!isset($match['akeneo_attribute'], $match['magento_attribute'])) {
+                continue;
+            }
+
+            /** @var string $magentoAttribute */
+            $magentoAttribute = $match['magento_attribute'];
+            if ($magentoAttribute === 'sku') {
+                return $match['akeneo_attribute'];
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get the attribute mapping, with lowered values
      *
      * @return mixed
@@ -828,6 +886,30 @@ class Config extends AbstractHelper
         $loweredMatches = [];
         /** @var string[] $match */
         foreach ($matches as $match) {
+            $match           = array_map('strtolower', $match);
+            $loweredMatches[] = $match;
+        }
+
+        return $loweredMatches;
+    }
+
+    /**
+     * Get the attribute mapping, with lowered values
+     *
+     * @return mixed
+     */
+    public function getConfigurableAttributeMapping()
+    {
+        /** @var mixed $matches */
+        $matches = $this->scopeConfig->getValue(self::PRODUCT_CONFIGURABLE_ATTRIBUTES);
+        $matches = $this->serializer->unserialize($matches);
+        /** @var mixed $loweredMatchs */
+        $loweredMatches = [];
+        /** @var string[] $match */
+        foreach ($matches as $match) {
+            if($match['type'] != 'mapping') {
+                continue;
+            }
             $match           = array_map('strtolower', $match);
             $loweredMatches[] = $match;
         }

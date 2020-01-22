@@ -226,6 +226,18 @@ class Product extends Import
      * @var StoreManagerInterface $storeManager
      */
     protected $storeManager;
+    /**
+     * This variable contains default sku for simple products
+     *
+     * @var string $akeneoSimpleSku
+     */
+    protected $akeneoSimpleSku = 'identifier';
+    /**
+     * This variable contains default sku for configurable products
+     *
+     * @var string $akeneoConfigurableSku
+     */
+    protected $akeneoConfigurableSku = 'identifier';
 
     /**
      * Product constructor.
@@ -436,6 +448,26 @@ class Product extends Import
         return $metricsSymbols;
     }
 
+    public function isAuthorizedSku($attributeCode)
+    {
+        /** @var  $attribute */
+        $attribute = $this->akeneoClient->getAttributeApi()->get($attributeCode);
+
+        if ($attribute['type'] != 'pim_catalog_text') {
+            $this->setMessage(__('Attribute %1 is not a text attribute and cannot be use as sku', $attributeCode));
+
+            return false;
+        }
+
+        if (isset($attribute['unique']) && $attribute['unique'] === true) {
+            return true;
+        }
+
+        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku', $simpleSkuMapped));
+
+        return false;
+    }
+
     /**
      * Create configurable products
      *
@@ -448,6 +480,35 @@ class Product extends Import
         $connection = $this->entitiesHelper->getConnection();
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
+
+        /** @var string|false $simpleSkuMapped */
+        $simpleSkuMapped = $this->configHelper->getSimpleSkuMapped();
+
+        if($simpleSkuMapped != false) {
+            /** @var  $isAuthorizeSku */
+            $isAuthorizeSku = $this->isAuthorizedSku($simpleSkuMapped);
+
+            if (!$isAuthorizeSku){
+                $this->stop(true);
+                return;
+            }
+            $this->setAkeneoSimpleSku($simpleSkuMapped);
+        }
+
+        $this->setAdditionalMessage(__('Attribute %1 use as sku for simple products', $this->getAkeneoSimpleSku()));
+
+        /** @var string|false $configurableSkuMapped */
+        $configurableSkuMapped = $this->configHelper->getConfigurableSkuMapped();
+        if($configurableSkuMapped != false) {
+            $isAuthorizeSku = $this->isAuthorizedSku($configurableSkuMapped);
+            if (!$isAuthorizeSku){
+                $this->stop(true);
+                return;
+            }
+            $this->setAkeneoConfigurableSku($configurableSkuMapped);
+        }
+
+        $this->setAdditionalMessage(__('Attribute %1 use as sku for configurable products', $this->getAkeneoConfigurableSku()));
 
         $connection->addColumn(
             $tmpTable,
@@ -605,6 +666,50 @@ class Product extends Import
             }
         }
         $this->entitiesHelper->formatUrlKeyColumn($tmpTable);
+    }
+
+    /**
+     * Akeneo simple sku getter
+     *
+     * @return string
+     */
+    public function getAkeneoSimpleSku()
+    {
+        return $this->akeneoSimpleSku;
+    }
+
+    /**
+     * Akeneo simple sku setter
+     *
+     * @param mixed $akeneoSimpleSku
+     *
+     * @return
+     */
+    public function setAkeneoSimpleSku($akeneoSimpleSku)
+    {
+        $this->akeneoSimpleSku = $akeneoSimpleSku;
+    }
+
+    /**
+     * Akeneo configurable sku getter
+     *
+     * @return string
+     */
+    public function getAkeneoConfigurableSku()
+    {
+        return $this->akeneoConfigurableSku;
+    }
+
+    /**
+     * Akeneo configurable sku setter
+     *
+     * @param mixed $akeneoConfigurableSku
+     *
+     * @return
+     */
+    public function setAkeneoConfigurableSku($akeneoConfigurableSku)
+    {
+        $this->akeneoConfigurableSku = $akeneoConfigurableSku;
     }
 
     /**
@@ -876,6 +981,65 @@ class Product extends Import
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
 
+        if ($this->getAkeneoConfigurableSku() != 'identifier') {
+            /** @var mixed[] $productsToDelete */
+            $productsToDelete = $connection->fetchCol(
+                $connection->select()->from($tmpTable, ['identifier'])->where(
+                    sprintf('%s IS NULL', $this->getAkeneoConfigurableSku())
+                )->where('_type_id LIKE \'configurable\'')
+            );
+
+            if (count($productsToDelete) > 0) {
+                /** @var mixed[] $childrenIds */
+                $childrenIds = $connection->fetchCol(
+                    $connection->select()->from($tmpTable, ['_children'])->where(
+                        sprintf('%s IS NULL', $this->getAkeneoConfigurableSku())
+                    )->where('_type_id LIKE \'configurable\'')
+                );
+
+                if (count($childrenIds) > 0) {
+                    foreach ($childrenIds as $childrenId) {
+                        $ids              = explode(',', $childrenId);
+                        $productsToDelete = array_merge($productsToDelete, $ids);
+                    }
+                }
+
+                $this->setAdditionalMessage(
+                    __(
+                        'Configurable products and their childs are not imported due to %1 use as sku is null',
+                        $this->getAkeneoConfigurableSku()
+                    )
+                );
+                $connection->query(
+                    $connection->deleteFromSelect(
+                        $connection->select()->from($tmpTable)->where('identifier IN (?)', $productsToDelete),
+                        $tmpTable
+                    )
+                );
+            }
+        }
+
+        if ($this->getAkeneoSimpleSku() != 'identifier') {
+            /** @var mixed[] $productsToDelete */
+            $productsToDelete = $connection->fetchCol(
+                $connection->select()->from($tmpTable, ['identifier'])->where(
+                    sprintf('%s IS NULL', $this->getAkeneoSimpleSku())
+                )->where('_type_id LIKE \'simple\'')
+            );
+
+            if (count($productsToDelete) > 0) {
+                $this->setAdditionalMessage(
+                    __('Simple products are not imported due to %1 use as sku is null', $this->getAkeneoSimpleSku())
+                );
+                $connection->query(
+                    $connection->deleteFromSelect(
+                        $connection->select()->from($tmpTable)->where('identifier IN (?)', $productsToDelete),
+                        $tmpTable
+                    )
+                );
+            }
+        }
+
         /** @var array $duplicates */
         $duplicates = $connection->fetchCol(
             $connection->select()->from($tmpTable, ['identifier'])->group('identifier')->having('COUNT(identifier) > ?', 1)
@@ -1057,7 +1221,7 @@ class Product extends Import
             'entity_id'        => '_entity_id',
             'attribute_set_id' => '_attribute_set_id',
             'type_id'          => '_type_id',
-            'sku'              => 'identifier',
+            'sku'              => new Expr("CASE _type_id WHEN 'simple' THEN ". $this->getAkeneoSimpleSku() ." WHEN 'configurable' THEN ". $this->getAkeneoConfigurableSku() ." ELSE identifier END"),
             'has_options'      => new Expr(0),
             'required_options' => new Expr(0),
             'updated_at'       => new Expr('now()'),
