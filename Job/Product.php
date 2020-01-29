@@ -448,6 +448,13 @@ class Product extends Import
         return $metricsSymbols;
     }
 
+    /**
+     * Test if attribute use as sku is unique and text type
+     *
+     * @param string $attributeCode
+     *
+     * @return bool
+     */
     public function isAuthorizedSku($attributeCode)
     {
         /** @var  $attribute */
@@ -463,7 +470,7 @@ class Product extends Import
             return true;
         }
 
-        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku.', $simpleSkuMapped));
+        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku.', $attributeCode));
 
         return false;
     }
@@ -480,16 +487,16 @@ class Product extends Import
         $connection = $this->entitiesHelper->getConnection();
         /** @var string $tmpTable */
         $tmpTable = $this->entitiesHelper->getTableName($this->getCode());
-
         /** @var string|false $simpleSkuMapped */
         $simpleSkuMapped = $this->configHelper->getSimpleSkuMapped();
 
-        if($simpleSkuMapped != false) {
+        if ($simpleSkuMapped != false) {
             /** @var  $isAuthorizeSku */
             $isAuthorizeSku = $this->isAuthorizedSku($simpleSkuMapped);
 
-            if (!$isAuthorizeSku){
+            if (!$isAuthorizeSku) {
                 $this->stop(true);
+
                 return;
             }
             $this->setAkeneoSimpleSku($simpleSkuMapped);
@@ -499,16 +506,20 @@ class Product extends Import
 
         /** @var string|false $configurableSkuMapped */
         $configurableSkuMapped = $this->configHelper->getConfigurableSkuMapped();
-        if($configurableSkuMapped != false) {
+        
+        if ($configurableSkuMapped != false) {
             $isAuthorizeSku = $this->isAuthorizedSku($configurableSkuMapped);
-            if (!$isAuthorizeSku){
+            if (!$isAuthorizeSku) {
                 $this->stop(true);
+
                 return;
             }
             $this->setAkeneoConfigurableSku($configurableSkuMapped);
         }
 
-        $this->setAdditionalMessage(__('Attribute %1 use as sku for configurable products.', $this->getAkeneoConfigurableSku()));
+        $this->setAdditionalMessage(
+            __('Attribute %1 use as sku for configurable products.', $this->getAkeneoConfigurableSku())
+        );
 
         $connection->addColumn(
             $tmpTable,
