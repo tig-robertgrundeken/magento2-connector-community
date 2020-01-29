@@ -454,7 +454,7 @@ class Product extends Import
         $attribute = $this->akeneoClient->getAttributeApi()->get($attributeCode);
 
         if ($attribute['type'] != 'pim_catalog_text') {
-            $this->setMessage(__('Attribute %1 is not a text attribute and cannot be use as sku', $attributeCode));
+            $this->setMessage(__('Attribute %1 is not a text attribute and cannot be use as sku.', $attributeCode));
 
             return false;
         }
@@ -463,7 +463,7 @@ class Product extends Import
             return true;
         }
 
-        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku', $simpleSkuMapped));
+        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku.', $simpleSkuMapped));
 
         return false;
     }
@@ -495,7 +495,7 @@ class Product extends Import
             $this->setAkeneoSimpleSku($simpleSkuMapped);
         }
 
-        $this->setAdditionalMessage(__('Attribute %1 use as sku for simple products', $this->getAkeneoSimpleSku()));
+        $this->setAdditionalMessage(__('Attribute %1 use as sku for simple products.', $this->getAkeneoSimpleSku()));
 
         /** @var string|false $configurableSkuMapped */
         $configurableSkuMapped = $this->configHelper->getConfigurableSkuMapped();
@@ -508,7 +508,7 @@ class Product extends Import
             $this->setAkeneoConfigurableSku($configurableSkuMapped);
         }
 
-        $this->setAdditionalMessage(__('Attribute %1 use as sku for configurable products', $this->getAkeneoConfigurableSku()));
+        $this->setAdditionalMessage(__('Attribute %1 use as sku for configurable products.', $this->getAkeneoConfigurableSku()));
 
         $connection->addColumn(
             $tmpTable,
@@ -1006,7 +1006,7 @@ class Product extends Import
 
                 $this->setAdditionalMessage(
                     __(
-                        'Configurable products and their childs are not imported due to %1 use as sku is null',
+                        'Configurable products and their childs are not imported due to %1 use as sku is null.',
                         $this->getAkeneoConfigurableSku()
                     )
                 );
@@ -1029,7 +1029,7 @@ class Product extends Import
 
             if (count($productsToDelete) > 0) {
                 $this->setAdditionalMessage(
-                    __('Simple products are not imported due to %1 use as sku is null', $this->getAkeneoSimpleSku())
+                    __('Simple products are not imported due to %1 use as sku is null.', $this->getAkeneoSimpleSku())
                 );
                 $connection->query(
                     $connection->deleteFromSelect(
