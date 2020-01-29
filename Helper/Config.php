@@ -858,14 +858,14 @@ class Config extends AbstractHelper
 
         /** @var mixed[] $match */
         foreach ($matches as $match) {
-            if (!isset($match['akeneo_attribute'], $match['magento_attribute'])) {
+            if (!isset($match['attribute'], $match['value'])) {
                 continue;
             }
 
             /** @var string $magentoAttribute */
-            $magentoAttribute = $match['magento_attribute'];
+            $magentoAttribute = $match['value'];
             if ($magentoAttribute === 'sku') {
-                return $match['akeneo_attribute'];
+                return $match['attribute'];
             }
         }
 
