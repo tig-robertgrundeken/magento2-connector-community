@@ -463,6 +463,11 @@ class Product extends Import
         return false;
     }
 
+    /**
+     * Get simple product sku by settings and verify
+     *
+     * @return bool|string
+     */
     public function getSimpleSku()
     {
         /** @var string|false $simpleSkuMapped */
@@ -470,7 +475,12 @@ class Product extends Import
 
         return $this->testAttributeAsSku($simpleSkuMapped);
     }
-
+    
+    /**
+     * Get configurable product sku by settings and verify
+     *
+     * @return bool|string
+     */
     public function getConfigurableSku()
     {
         /** @var string|false $configurableSkuMapped */
@@ -479,6 +489,13 @@ class Product extends Import
         return $this->testAttributeAsSku($configurableSkuMapped);
     }
 
+    /**
+     * Test if an attribute can be used as sku
+     *
+     * @param string $attribute
+     *
+     * @return bool|string
+     */
     public function testAttributeAsSku($attribute)
     {
         if ($attribute != false) {
