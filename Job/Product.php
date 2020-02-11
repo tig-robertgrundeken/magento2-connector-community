@@ -437,7 +437,7 @@ class Product extends Import
     }
 
     /**
-     * Test if attribute use as sku is unique and text type
+     * Test if attribute use as sku is text type and not scopable or localizable
      *
      * @param string $attributeCode
      *
@@ -454,13 +454,13 @@ class Product extends Import
             return false;
         }
 
-        if (isset($attribute['unique']) && $attribute['unique'] === true) {
-            return true;
+        if ((isset($attribute['scopable']) && $attribute['scopable'] === true) || (isset($attribute['localizable']) && $attribute['localizable'] === true)) {
+            $this->setMessage(__('Attribute %1 is localizable or scopable and cannot be use as sku.', $attributeCode));
+
+            return false;
         }
 
-        $this->setMessage(__('Attribute %1 is not an unique attribute and cannot be use as sku.', $attributeCode));
-
-        return false;
+        return true;
     }
 
     /**
@@ -986,23 +986,9 @@ class Product extends Import
             );
 
             if (count($productsToDelete) > 0) {
-                /** @var mixed[] $childrenIds */
-                $childrenIds = $connection->fetchCol(
-                    $connection->select()->from($tmpTable, ['_children'])->where(
-                        sprintf('%s IS NULL', $configurableSku)
-                    )->where('_type_id LIKE \'configurable\'')
-                );
-
-                if (count($childrenIds) > 0) {
-                    foreach ($childrenIds as $childrenId) {
-                        $ids              = explode(',', $childrenId);
-                        $productsToDelete = array_merge($productsToDelete, $ids);
-                    }
-                }
-
                 $this->setAdditionalMessage(
                     __(
-                        'Configurable products and their childs are not imported due to %1 use as sku is null.',
+                        'Configurable products are not imported due to %1 use as sku is null.',
                         $configurableSku
                     )
                 );
@@ -1011,6 +997,25 @@ class Product extends Import
                         $connection->select()->from($tmpTable)->where('identifier IN (?)', $productsToDelete),
                         $tmpTable
                     )
+                );
+            }
+
+            /** @var []mixed $duplicatedConfigurableSkus */
+            $duplicatedConfigurableSkus = $connection->fetchCol(
+                $connection->select()->from($tmpTable, [$configurableSku])->group($configurableSku)->having('COUNT('.$configurableSku.') > ?', 1)
+            );
+
+            if (!empty($duplicatedConfigurableSkus)) {
+
+                $connection->query(
+                    $connection->deleteFromSelect(
+                        $connection->select()->from($tmpTable)->where($configurableSku. ' IN (?)', $duplicatedConfigurableSkus),
+                        $tmpTable
+                    )
+                );
+
+                $this->setAdditionalMessage(
+                    __('Duplicates sku detected. Make sure Product Model code is not the same. Duplicates: %1 are deleted', join(', ', $duplicatedConfigurableSkus))
                 );
             }
         }
@@ -1035,6 +1040,25 @@ class Product extends Import
                         $connection->select()->from($tmpTable)->where('identifier IN (?)', $productsToDelete),
                         $tmpTable
                     )
+                );
+            }
+
+            /** @var []mixed $duplicatedSimpleSkus */
+            $duplicatedSimpleSkus = $connection->fetchCol(
+                $connection->select()->from($tmpTable, [$simpleSku])->group($simpleSku)->having('COUNT('.$simpleSku.') > ?', 1)
+            );
+
+            if (!empty($duplicatedSimpleSkus)) {
+
+                $connection->query(
+                    $connection->deleteFromSelect(
+                        $connection->select()->from($tmpTable)->where($simpleSku. ' IN (?)', $duplicatedSimpleSkus),
+                        $tmpTable
+                    )
+                );
+
+                $this->setAdditionalMessage(
+                    __('Duplicates sku detected. Make sure Simple product code is not the same. Duplicates: %1 are deleted', join(', ', $duplicatedSimpleSkus))
                 );
             }
         }
